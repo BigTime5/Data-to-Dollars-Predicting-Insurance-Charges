@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Healthcare Cost Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0d14;
+    --surface: #111520;
+    --surface2: #181d2e;
+    --border: #1e2438;
+    --accent: #00e5c3;
+    --accent2: #ff6b6b;
+    --accent3: #ffd166;
+    --accent4: #6c5ce7;
+    --text: #e8eaf0;
+    --muted: #6b7499;
+    --card-glow: rgba(0, 229, 195, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,195,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,195,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeDown 0.6s ease;
+  }
+
+  .header-left {}
+  .tag {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(0,229,195,0.08);
+    border: 1px solid rgba(0,229,195,0.2);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 3.5vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 32px;
+    align-items: flex-end;
+  }
+
+  .header-stat {
+    text-align: right;
+  }
+
+  .header-stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .header-stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* KPI Row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s ease 0.1s both;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+
+  .kpi-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+  }
+
+  .kpi-card.teal::before { background: var(--accent); }
+  .kpi-card.red::before { background: var(--accent2); }
+  .kpi-card.yellow::before { background: var(--accent3); }
+  .kpi-card.purple::before { background: var(--accent4); }
+
+  .kpi-icon {
+    font-size: 20px;
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .kpi-card.teal .kpi-value { color: var(--accent); }
+  .kpi-card.red .kpi-value { color: var(--accent2); }
+  .kpi-card.yellow .kpi-value { color: var(--accent3); }
+  .kpi-card.purple .kpi-value { color: var(--accent4); }
+
+  .kpi-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .kpi-sub {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Main grid */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s ease 0.2s both;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s ease 0.3s both;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s ease 0.4s both;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    transition: border-color 0.3s;
+  }
+
+  .card:hover { border-color: rgba(0,229,195,0.3); }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .card-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .badge-teal { background: rgba(0,229,195,0.12); color: var(--accent); }
+  .badge-red { background: rgba(255,107,107,0.12); color: var(--accent2); }
+  .badge-yellow { background: rgba(255,209,102,0.12); color: var(--accent3); }
+
+  /* Chart containers */
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  /* Smoker impact */
+  .impact-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .impact-item {}
+
+  .impact-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+
+  .impact-name { color: var(--text); font-weight: 500; }
+  .impact-val { font-family: 'Syne', sans-serif; font-weight: 700; }
+  .impact-val.high { color: var(--accent2); }
+  .impact-val.low { color: var(--accent); }
+
+  .bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0;
+  }
+
+  .bar-fill.smoker { background: linear-gradient(90deg, #ff6b6b, #ff4757); }
+  .bar-fill.non-smoker { background: linear-gradient(90deg, #00e5c3, #00cba8); }
+
+  /* Region table */
+  .region-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .region-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 12px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .region-table th:last-child { text-align: right; }
+
+  .region-table td {
+    padding: 12px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .region-table td:last-child { text-align: right; }
+  .region-table tr:last-child td { border-bottom: none; }
+
+  .region-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  .amount {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent3);
+  }
+
+  /* Insight panel */
+  .insight-panel {
+    background: linear-gradient(135deg, rgba(0,229,195,0.06), rgba(108,92,231,0.06));
+    border: 1px solid rgba(0,229,195,0.15);
+    border-radius: 8px;
+    padding: 24px;
+    animation: fadeUp 0.6s ease 0.5s both;
+  }
+
+  .insight-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .insight-title::before {
+    content: '⚡';
+    font-size: 14px;
+  }
+
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .insight-item {
+    padding: 16px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  .insight-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .insight-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .insight-desc strong { color: var(--text); }
+
+  /* Prediction table */
+  .pred-scroll {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .pred-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .pred-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pred-table td {
+    padding: 9px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .pred-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .risk-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+  }
+
+  .risk-high { background: rgba(255,107,107,0.15); color: var(--accent2); }
+  .risk-med { background: rgba(255,209,102,0.15); color: var(--accent3); }
+  .risk-low { background: rgba(0,229,195,0.15); color: var(--accent); }
+
+  /* Footer */
+  .footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    animation: fadeUp 0.6s ease 0.6s both;
+  }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  /* Donut center text */
+  .donut-center {
+    text-align: center;
+    margin-top: -10px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .grid-main { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .insights-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="tag">Healthcare Analytics · Predictive Intelligence</div>
+      <h1>Medical Cost<br><span>Prediction Dashboard</span></h1>
+      <p class="subtitle">Insurance customer segmentation & charge forecast analysis</p>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <a href="https://data-to-dollars-predicting-insuranc-five.vercel.app/" target="_blank" style="display:inline-flex; align-items:center; gap:7px; padding:8px 16px; background:rgba(0,229,195,0.1); border:1px solid rgba(0,229,195,0.35); border-radius:4px; color:var(--accent); text-decoration:none; font-family:DM Mono,monospace; font-size:11px; letter-spacing:0.5px; transition:all 0.2s;" onmouseover="this.style.background='rgba(0,229,195,0.18)'" onmouseout="this.style.background='rgba(0,229,195,0.1)'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          &#9654; LIVE APP
+        </a>
+        <a href="https://github.com/BigTime5/Data-to-Dollars-Predicting-Insurance-Charges" target="_blank" style="display:inline-flex; align-items:center; gap:7px; padding:8px 16px; background:rgba(108,92,231,0.1); border:1px solid rgba(108,92,231,0.35); border-radius:4px; color:#a29bfe; text-decoration:none; font-family:DM Mono,monospace; font-size:11px; letter-spacing:0.5px; transition:all 0.2s;" onmouseover="this.style.background='rgba(108,92,231,0.18)'" onmouseout="this.style.background='rgba(108,92,231,0.1)'">
+          &#128279; GITHUB
+        </a>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="header-stat">
+        <div class="header-stat-value">1,338</div>
+        <div class="header-stat-label">Training Records</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-value">50</div>
+        <div class="header-stat-label">Predictions</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-value">6</div>
+        <div class="header-stat-label">Features</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi-card teal">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-value">$13,287</div>
+      <div class="kpi-label">Avg Annual Charge</div>
+      <div class="kpi-sub">Training dataset mean · σ = $12,143</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-icon">🚬</div>
+      <div class="kpi-value">3.8×</div>
+      <div class="kpi-label">Smoker Cost Multiplier</div>
+      <div class="kpi-sub">$32,068 vs $8,430 non-smoker avg</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-icon">🎯</div>
+      <div class="kpi-value">$24,107</div>
+      <div class="kpi-label">Avg Predicted Charge</div>
+      <div class="kpi-sub">Validation set · 50 customers</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-value">19.4%</div>
+      <div class="kpi-label">Smoker Prevalence</div>
+      <div class="kpi-sub">259 of 1,338 customers identified</div>
+    </div>
+  </div>
+
+  <!-- Main Grid: Bar chart + Smoker Impact -->
+  <div class="grid-main">
+    <!-- Charges Distribution Chart -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Charges Distribution by Smoking Status</div>
+          <div class="card-subtitle">Annual medical costs segmented across customer base</div>
+        </div>
+        <div class="card-badge badge-teal">TRAINING DATA</div>
+      </div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="chargesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Smoker Impact -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Cost Driver: Smoking</div>
+          <div class="card-subtitle">Largest single predictor of charges</div>
+        </div>
+        <div class="card-badge badge-red">HIGH IMPACT</div>
+      </div>
+      <div class="impact-bars">
+        <div class="impact-item">
+          <div class="impact-header">
+            <span class="impact-name">🚬 Smokers</span>
+            <span class="impact-val high">$32,068</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill smoker" data-width="100"></div>
+          </div>
+        </div>
+        <div class="impact-item">
+          <div class="impact-header">
+            <span class="impact-name">✓ Non-Smokers</span>
+            <span class="impact-val low">$8,430</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill non-smoker" data-width="26.3"></div>
+          </div>
+        </div>
+
+        <div style="padding-top:16px; border-top: 1px solid var(--border);">
+          <div style="font-size:12px; color: var(--muted); margin-bottom:14px; font-family:'DM Mono',monospace; letter-spacing:0.5px;">AVG CHARGES BY AGE GROUP</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; font-size:13px;">
+              <span>18–30</span>
+              <span style="font-family:'Syne',sans-serif; color:#6c5ce7;">$9,539</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:13px;">
+              <span>31–45</span>
+              <span style="font-family:'Syne',sans-serif; color:#6c5ce7;">$12,603</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:13px;">
+              <span>46–60</span>
+              <span style="font-family:'Syne',sans-serif; color:#ffd166;">$16,375</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:13px;">
+              <span>61–70</span>
+              <span style="font-family:'Syne',sans-serif; color:#ff6b6b;">$20,747</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three charts -->
+  <div class="grid-3">
+    <!-- Smoker Donut -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Smoker Ratio</div>
+          <div class="card-subtitle">Population distribution</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px;">
+        <canvas id="smokerDonut"></canvas>
+      </div>
+      <div class="donut-center">
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;">1,013 non-smokers · 259 smokers</div>
+      </div>
+    </div>
+
+    <!-- Region Chart -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Regional Analysis</div>
+          <div class="card-subtitle">Avg charges by US region</div>
+        </div>
+        <div class="card-badge badge-yellow">REGIONAL</div>
+      </div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="regionChart"></canvas>
+      </div>
+    </div>
+
+    <!-- BMI Chart -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">BMI vs Charges</div>
+          <div class="card-subtitle">Cost by BMI category</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="bmiChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two charts -->
+  <div class="grid-2">
+    <!-- Age trend -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Charges Trend by Age Group</div>
+          <div class="card-subtitle">Smokers vs Non-Smokers cost escalation</div>
+        </div>
+        <div class="card-badge badge-teal">TREND</div>
+      </div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="ageChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Prediction distribution -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Validation Predictions Distribution</div>
+          <div class="card-subtitle">50 customers · model output analysis</div>
+        </div>
+        <div class="card-badge badge-yellow">PREDICTIONS</div>
+      </div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="predChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prediction table + Region breakdown -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Validation Customer Predictions</div>
+          <div class="card-subtitle">Model output — sample records</div>
+        </div>
+        <div class="card-badge badge-yellow">LIVE MODEL</div>
+      </div>
+      <div class="pred-scroll">
+        <table class="pred-table">
+          <thead>
+            <tr>
+              <th>Age</th>
+              <th>BMI</th>
+              <th>Smoker</th>
+              <th>Region</th>
+              <th>Predicted</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="predTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Regional Prediction Breakdown</div>
+          <div class="card-subtitle">Predicted cost range per region</div>
+        </div>
+      </div>
+      <table class="region-table">
+        <thead>
+          <tr>
+            <th>Region</th>
+            <th>Avg Predicted</th>
+            <th>Max</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="region-dot" style="background:#ff6b6b;"></span>Southwest</td>
+            <td><span class="amount">$31,058</span></td>
+            <td style="color:var(--muted); font-size:12px;">$115,225</td>
+          </tr>
+          <tr>
+            <td><span class="region-dot" style="background:#ffd166;"></span>Southeast</td>
+            <td><span class="amount">$29,657</span></td>
+            <td style="color:var(--muted); font-size:12px;">$92,315</td>
+          </tr>
+          <tr>
+            <td><span class="region-dot" style="background:#00e5c3;"></span>Northwest</td>
+            <td><span class="amount">$21,794</span></td>
+            <td style="color:var(--muted); font-size:12px;">$87,716</td>
+          </tr>
+          <tr>
+            <td><span class="region-dot" style="background:#6c5ce7;"></span>Northeast</td>
+            <td><span class="amount">$14,723</span></td>
+            <td style="color:var(--muted); font-size:12px;">$81,733</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+        <div style="font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:1px; margin-bottom:14px;">PREDICTED vs TRAINING — SMOKER AVG</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="text-align:center; padding:12px; background:rgba(255,107,107,0.07); border-radius:6px; border:1px solid rgba(255,107,107,0.15);">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">TRAIN · Smoker</div>
+            <div style="font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:#ff6b6b;">$32,068</div>
+          </div>
+          <div style="text-align:center; padding:12px; background:rgba(255,107,107,0.07); border-radius:6px; border:1px solid rgba(255,107,107,0.15);">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">PRED · Smoker</div>
+            <div style="font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:#ff6b6b;">$49,147</div>
+          </div>
+          <div style="text-align:center; padding:12px; background:rgba(0,229,195,0.07); border-radius:6px; border:1px solid rgba(0,229,195,0.15);">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">TRAIN · Non-Smoker</div>
+            <div style="font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:#00e5c3;">$8,430</div>
+          </div>
+          <div style="text-align:center; padding:12px; background:rgba(0,229,195,0.07); border-radius:6px; border:1px solid rgba(0,229,195,0.15);">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">PRED · Non-Smoker</div>
+            <div style="font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:#00e5c3;">$10,023</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Insight Panel -->
+  <div class="insight-panel">
+    <div class="insight-title">Key Predictive Insights</div>
+    <div class="insights-grid">
+      <div class="insight-item">
+        <div class="insight-number">3.8×</div>
+        <div class="insight-desc"><strong>Smoking is the #1 cost driver.</strong> Smokers cost 280% more on average — the single most impactful feature in the prediction model.</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-number">117%</div>
+        <div class="insight-desc"><strong>Cost rise from 18 to 70.</strong> Medical charges more than double as patients age, with sharp acceleration after 45 years.</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-number">$6,737</div>
+        <div class="insight-desc"><strong>Obesity cost premium.</strong> Obese customers (BMI 30+) average $6,737 more annually than normal-weight individuals.</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-number">21%</div>
+        <div class="insight-desc"><strong>Southeast smoker rate</strong> is highest among all four regions, driving that region's above-average predicted claims.</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-number">$16,341</div>
+        <div class="insight-desc"><strong>Premium prediction delta</strong> between Southwest (highest) and Northeast (lowest) regions in validation set.</div>
+      </div>
+      <div class="insight-item">
+        <div class="insight-number">≈50%</div>
+        <div class="insight-desc"><strong>Predictions cluster</strong> under $12,000 while high-risk smokers drive the mean to $24,107 — clear bimodal distribution.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div><span class="live-dot"></span>Healthcare Cost Prediction Engine · Insurance Analytics Division</div>
+    <div style="display:flex; gap:16px; align-items:center;">
+      <a href="https://data-to-dollars-predicting-insuranc-five.vercel.app/" target="_blank" style="color:var(--accent); text-decoration:none; font-family:DM Mono,monospace; font-size:11px; opacity:0.8;">&#9654; Live App</a>
+      <span style="opacity:0.3;">|</span>
+      <a href="https://github.com/BigTime5/Data-to-Dollars-Predicting-Insurance-Charges" target="_blank" style="color:#a29bfe; text-decoration:none; font-family:DM Mono,monospace; font-size:11px; opacity:0.8;">&#128279; GitHub</a>
+      <span style="opacity:0.3;">|</span>
+      <span>1,338 records · 50 predictions · 2026</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+Chart.defaults.color = '#6b7499';
+Chart.defaults.borderColor = '#1e2438';
+Chart.defaults.font.family = 'DM Sans';
+
+const palette = {
+  teal: '#00e5c3',
+  red: '#ff6b6b',
+  yellow: '#ffd166',
+  purple: '#6c5ce7',
+  blue: '#74b9ff',
+  orange: '#fd9644'
+};
+
+// 1. Charges Distribution Bar Chart
+const chargesCtx = document.getElementById('chargesChart').getContext('2d');
+new Chart(chargesCtx, {
+  type: 'bar',
+  data: {
+    labels: ['$0–5K', '$5K–10K', '$10K–20K', '$20K–30K', '$30K–40K', '$40K–70K'],
+    datasets: [{
+      label: 'Customers',
+      data: [339, 338, 335, 105, 79, 76],
+      backgroundColor: [
+        'rgba(0,229,195,0.7)', 'rgba(0,229,195,0.6)', 'rgba(0,229,195,0.5)',
+        'rgba(255,209,102,0.7)', 'rgba(255,107,107,0.6)', 'rgba(255,107,107,0.8)'
+      ],
+      borderColor: [
+        '#00e5c3', '#00e5c3', '#00e5c3',
+        '#ffd166', '#ff6b6b', '#ff6b6b'
+      ],
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { stepSize: 50 }
+      }
+    }
+  }
+});
+
+// 2. Smoker Donut
+const smokerCtx = document.getElementById('smokerDonut').getContext('2d');
+new Chart(smokerCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Non-Smokers', 'Smokers'],
+    datasets: [{
+      data: [1013, 259],
+      backgroundColor: ['rgba(0,229,195,0.8)', 'rgba(255,107,107,0.8)'],
+      borderColor: ['#00e5c3', '#ff6b6b'],
+      borderWidth: 2,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '72%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { padding: 12, font: { size: 11 }, usePointStyle: true }
+      }
+    }
+  }
+});
+
+// 3. Region Chart
+const regionCtx = document.getElementById('regionChart').getContext('2d');
+new Chart(regionCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Northeast', 'Northwest', 'Southwest', 'Southeast'],
+    datasets: [{
+      label: 'Avg Charges ($)',
+      data: [13301, 12334, 12630, 14911],
+      backgroundColor: [
+        'rgba(108,92,231,0.7)', 'rgba(0,229,195,0.7)',
+        'rgba(255,107,107,0.7)', 'rgba(255,209,102,0.7)'
+      ],
+      borderColor: ['#6c5ce7', '#00e5c3', '#ff6b6b', '#ffd166'],
+      borderWidth: 1,
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' }
+      },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// 4. BMI Chart
+const bmiCtx = document.getElementById('bmiChart').getContext('2d');
+new Chart(bmiCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Underweight', 'Normal', 'Overweight', 'Obese'],
+    datasets: [{
+      label: 'Avg Charges',
+      data: [8904, 10431, 10994, 15641],
+      backgroundColor: [
+        'rgba(116,185,255,0.7)', 'rgba(0,229,195,0.7)',
+        'rgba(255,209,102,0.7)', 'rgba(255,107,107,0.8)'
+      ],
+      borderRadius: 4, borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' }
+      }
+    }
+  }
+});
+
+// 5. Age trend line chart
+const ageCtx = document.getElementById('ageChart').getContext('2d');
+new Chart(ageCtx, {
+  type: 'line',
+  data: {
+    labels: ['18–30', '31–45', '46–60', '61–70'],
+    datasets: [
+      {
+        label: 'All Customers',
+        data: [9539, 12603, 16375, 20747],
+        borderColor: '#00e5c3',
+        backgroundColor: 'rgba(0,229,195,0.08)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#00e5c3',
+        pointRadius: 5
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { font: { size: 11 }, usePointStyle: true } } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' }
+      }
+    }
+  }
+});
+
+// 6. Predictions distribution
+const predCtx = document.getElementById('predChart').getContext('2d');
+new Chart(predCtx, {
+  type: 'bar',
+  data: {
+    labels: ['<$5K', '$5K–10K', '$10K–20K', '$20K–30K', '$30K–50K', '$50K+'],
+    datasets: [{
+      label: 'Predicted Customers',
+      data: [6, 14, 12, 6, 6, 6],
+      backgroundColor: [
+        'rgba(0,229,195,0.8)', 'rgba(0,229,195,0.6)', 'rgba(0,229,195,0.5)',
+        'rgba(255,209,102,0.7)', 'rgba(255,107,107,0.6)', 'rgba(255,107,107,0.85)'
+      ],
+      borderRadius: 4, borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 3 } }
+    }
+  }
+});
+
+// Prediction table data
+const predictions = [
+  {age:18, bmi:24.09, smoker:'no', region:'southeast', charge:2916.91},
+  {age:39, bmi:26.41, smoker:'yes', region:'northeast', charge:8698.21},
+  {age:27, bmi:29.15, smoker:'yes', region:'southeast', charge:8947.06},
+  {age:71, bmi:65.50, smoker:'yes', region:'southeast', charge:79725.23},
+  {age:52, bmi:30.40, smoker:'no', region:'northwest', charge:10269.46},
+  {age:45, bmi:33.10, smoker:'yes', region:'southwest', charge:42211.14},
+  {age:31, bmi:22.80, smoker:'no', region:'northeast', charge:4561.19},
+  {age:62, bmi:38.20, smoker:'yes', region:'southeast', charge:92314.90},
+  {age:24, bmi:28.90, smoker:'no', region:'northwest', charge:3396.50},
+  {age:56, bmi:35.60, smoker:'yes', region:'southwest', charge:115225.15},
+  {age:43, bmi:27.50, smoker:'no', region:'northeast', charge:8059.66},
+  {age:19, bmi:26.20, smoker:'no', region:'southwest', charge:1708.17},
+  {age:65, bmi:31.80, smoker:'no', region:'southeast', charge:13844.51},
+  {age:37, bmi:40.30, smoker:'yes', region:'northwest', charge:43791.16},
+  {age:48, bmi:29.60, smoker:'no', region:'northeast', charge:9447.38},
+];
+
+const tbody = document.getElementById('predTableBody');
+predictions.forEach(p => {
+  const risk = p.charge > 30000 ? 'HIGH' : p.charge > 10000 ? 'MED' : 'LOW';
+  const riskClass = p.charge > 30000 ? 'risk-high' : p.charge > 10000 ? 'risk-med' : 'risk-low';
+  const row = `<tr>
+    <td>${p.age}</td>
+    <td>${p.bmi.toFixed(1)}</td>
+    <td style="color:${p.smoker === 'yes' ? '#ff6b6b' : '#00e5c3'}">${p.smoker === 'yes' ? '🚬 Yes' : '✓ No'}</td>
+    <td style="text-transform:capitalize">${p.region}</td>
+    <td style="font-family:'Syne',sans-serif; font-weight:700;">$${p.charge.toLocaleString('en-US', {maximumFractionDigits:0})}</td>
+    <td><span class="risk-badge ${riskClass}">${risk}</span></td>
+  </tr>`;
+  tbody.innerHTML += row;
+});
+
+// Animate bars
+setTimeout(() => {
+  document.querySelectorAll('.bar-fill').forEach(bar => {
+    bar.style.width = bar.dataset.width + '%';
+  });
+}, 300);
+</script>
+</body>
+</html>
